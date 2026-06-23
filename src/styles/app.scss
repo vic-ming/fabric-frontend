@@ -1,0 +1,36 @@
+$brand: #4775ee;
+$lift-shadow: 0 14px 34px rgb(35 67 138 / 18%);
+
+// Sass remains a separate component-style layer. Tailwind is compiled directly
+// by its Vite plugin, as recommended for Tailwind v4.
+.workspace-header {
+  strong {
+    letter-spacing: -.015em;
+  }
+
+  .logout-button {
+    transition: opacity .18s ease, transform .18s ease;
+
+    &:hover {
+      opacity: .78;
+      transform: translateX(2px);
+    }
+  }
+}
+
+.fabric-card,
+.new-fabric-card {
+  transition: transform .2s ease, box-shadow .2s ease;
+
+  &:hover {
+    box-shadow: $lift-shadow;
+  }
+}
+
+.search-node {
+  select:focus,
+  input:focus {
+    border-color: $brand;
+    box-shadow: 0 0 0 3px rgba($brand, .12);
+  }
+}
