@@ -11,32 +11,44 @@ const props = defineProps({
 });
 const emit = defineEmits(['close']);
 
-const selectedModelId = ref(6);
-const selectedHdriId = ref(1);
+const selectedModelId = ref(previewModels[0]?.value ?? 1);
+const selectedHdriId = ref(hdriOptions[0]?.value ?? 1);
 const tiling = ref(1);
 const autoRotate = ref(false);
+const downloading = ref(false);
 
 const model = computed(() => previewModels.find((item) => item.value === selectedModelId.value) ?? previewModels[0]);
 const hdri = computed(() => hdriOptions.find((item) => item.value === selectedHdriId.value) ?? hdriOptions[0]);
 const tilingLabel = computed(() => `${Math.round(tiling.value * 100)}%`);
 const fabric = computed(() => props.data.fabric ?? {});
-const textureUrl = computed(() => props.data.textureUrl || makeGeneratedTexture(props.data));
+const library = computed(() => fabric.value.library ?? null);
+const u3m = computed(() => library.value?.u3m ?? null);
 
-function makeGeneratedTexture(data) {
-  const palette = {
-    motion: ['#0f4262', '#78c7ed', '#e4f7ff'],
-    botanical: ['#f8f3e7', '#7b9b72', '#eac4a0'],
-    paint: ['#068e9e', '#f36d33', '#11495e'],
-    strokes: ['#faf7ed', '#5f341b', '#ed315f'],
-    flowers: ['#f2e366', '#3b853b', '#f04f26'],
-    'blue-knit': ['#60a8ed', '#86c6fa', '#c7ecff'],
-  };
-  const solidColor = data.hex || '#d7d7d7';
-  const colors = data.kind === 'solid'
-    ? [solidColor, solidColor, solidColor]
-    : (palette[data.pattern] ?? palette.motion);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"><rect width="256" height="256" fill="${colors[0]}"/><path d="M-60 0 196 256M0 0l256 256M60 0l256 256" stroke="${colors[1]}" stroke-width="28"/><path d="M0 64h256M0 192h256" stroke="${colors[2]}" stroke-width="14" opacity=".75"/></svg>`;
+const textureUrl = computed(() => {
+  if (props.data.kind === 'solid') return solidTexture(props.data.hex);
+  // 內建圖案 / 上傳圖案都帶著 textureUrl；沒有圖案時退回布樣本身的 BASE 貼圖
+  return props.data.textureUrl || u3m.value?.textures?.base || solidTexture('#d7d7d7');
+});
+
+const patternLabel = computed(() => props.data.pattern || props.data.pantone || props.data.fileName || '素色');
+
+function solidTexture(hex = '#d7d7d7') {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><rect width="8" height="8" fill="${hex}"/></svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+// 交付的 7 組布樣已附 u3m/textures，直接把整包壓成使用者可下載的檔案清單
+async function downloadU3M() {
+  if (!u3m.value || downloading.value) return;
+  downloading.value = true;
+  try {
+    const link = document.createElement('a');
+    link.href = u3m.value.file;
+    link.download = `${library.value.code}.u3m`;
+    link.click();
+  } finally {
+    downloading.value = false;
+  }
 }
 </script>
 
@@ -53,12 +65,13 @@ function makeGeneratedTexture(data) {
       <section class="preview-fabric-info">
         <h3>布料資訊</h3>
         <div class="preview-info-content">
-          <div class="preview-info-swatch" :style="{ backgroundImage: `url(${textureUrl})` }"></div>
+          <div class="preview-info-swatch" :style="{ backgroundImage: `url(${fabric.swatch || textureUrl})` }"></div>
           <dl>
-            <dt>種類</dt><dd>{{ fabric.type || '圓編' }}</dd>
-            <dt>圖案</dt><dd>{{ data.pattern || data.pantone || '素色' }}</dd>
-            <dt>組織</dt><dd>{{ fabric.weave || '單面平紋' }}</dd>
-            <dt>加工</dt><dd>—</dd>
+            <dt>布號</dt><dd>{{ fabric.code || '—' }}</dd>
+            <dt>種類</dt><dd>{{ fabric.type || '—' }}</dd>
+            <dt>圖案</dt><dd>{{ patternLabel }}</dd>
+            <dt>組織</dt><dd>{{ fabric.weave || '—' }}</dd>
+            <dt>成分</dt><dd>{{ fabric.composition || '—' }}</dd>
           </dl>
         </div>
       </section>
@@ -72,11 +85,19 @@ function makeGeneratedTexture(data) {
         <h3>背景設定</h3>
         <div class="preview-switch"><span>自動旋轉</span><ToggleSwitch v-model="autoRotate" /></div>
         <label><span>HDRI 環境光</span><select v-model.number="selectedHdriId"><option v-for="item in hdriOptions" :key="item.value" :value="item.value">{{ item.displayname }}</option></select></label>
-        <label><span>預覽型態</span><select v-model.number="selectedModelId"><option v-for="item in previewModels" :key="item.value" :value="item.value">{{ item.displayname }}</option></select></label>
+        <label>
+          <span>預覽型態</span>
+          <select v-model.number="selectedModelId">
+            <option v-for="item in previewModels" :key="item.value" :value="item.value">{{ item.displayname }}（{{ item.group }}）</option>
+          </select>
+        </label>
       </section>
 
       <button type="button" class="blue-button preview-save"><img src="/images/ic_eye_solid_white.svg" alt="" />儲存並預覽</button>
-      <button type="button" class="preview-download"><img src="/images/ic_download.svg" alt="" />下載 u3ma 格式</button>
+      <button type="button" class="preview-download" :disabled="!u3m" @click="downloadU3M">
+        <img src="/images/ic_download.svg" alt="" />
+        {{ u3m ? '下載 u3ma 格式' : '此布樣尚未提供 u3m' }}
+      </button>
     </aside>
     <section class="preview-three-panel">
       <ThreeViewer :model="model" :hdri="hdri" :tiling="tiling" :auto-rotate="autoRotate" :texture-base="textureUrl" />

@@ -21,7 +21,10 @@ function selectExtension(type) {
   <article class="fabric-node">
     <Handle type="target" :position="Position.Left" />
     <header>{{ data.code }}</header>
-    <div class="fabric-swatch" :class="data.pattern"></div>
+    <div class="fabric-swatch" :class="data.swatch ? null : data.pattern">
+      <img v-if="data.swatch" :src="data.swatch" :alt="`${data.code} 組織瀏覽圖`" loading="lazy" />
+      <span v-if="data.hasU3M" class="fabric-badge">U3M</span>
+    </div>
     <dl>
       <dt>織物</dt><dd>{{ data.type }}</dd>
       <dt>織物組織</dt><dd>{{ data.weave }}</dd>

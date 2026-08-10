@@ -1,21 +1,38 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
+
+// 布料材質在模型上的重複次數由 previewModels 的 tilingX / tilingY 決定
+// （= 模型公分尺寸 / 9.144），使用者的縮放滑桿再乘上去。
 
 export function createFabricViewer(el, options) {
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.05, 500);
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
   const controls = new OrbitControls(camera, renderer.domElement);
   const textureLoader = new THREE.TextureLoader();
+  const gltfLoader = new GLTFLoader();
+  const rgbeLoader = new RGBELoader();
+  const pmrem = new THREE.PMREMGenerator(renderer);
   const group = new THREE.Group();
+
   let raf = null;
-  let currentMesh = null;
+  let disposed = false;
+  let current = null;          // { object, meshes }
+  let modelToken = 0;
+  let hdrToken = 0;
   let autoRotate = false;
-  let tiling = 1;
+  let tilingScale = 1;
+  let modelTiling = { x: 1, y: 1 };
   let baseTexture = null;
+  let envMap = null;
 
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1;
+  pmrem.compileEquirectangularShader();
   el.appendChild(renderer.domElement);
 
   camera.position.set(0, 1.1, 4.2);
@@ -23,7 +40,9 @@ export function createFabricViewer(el, options) {
   controls.target.set(0, 0.1, 0);
 
   scene.add(group);
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x676767, 1.2));
+
+  const hemisphere = new THREE.HemisphereLight(0xffffff, 0x676767, 1.2);
+  scene.add(hemisphere);
 
   const key = new THREE.DirectionalLight(0xffffff, 1.4);
   key.position.set(3, 4, 5);
@@ -44,16 +63,68 @@ export function createFabricViewer(el, options) {
   animate();
 
   function setModel(model) {
-    if (currentMesh) {
-      group.remove(currentMesh);
-      currentMesh.geometry.dispose();
-      currentMesh.material.dispose();
+    modelTiling = {
+      x: Number(model?.tilingX) || 1,
+      y: Number(model?.tilingY) || Number(model?.tilingX) || 1,
+    };
+    applyTiling();
+
+    const token = ++modelToken;
+    const url = model?.file;
+
+    if (!url || !url.endsWith('.glb')) {
+      // 尚未交付 glb（例如 Specs2VS 的 obj 物性模型）時退回程序化幾何
+      showObject(makePlaceholder(model?.displayname), token);
+      return;
     }
 
-    const geometry = makeGeometry(model?.displayname);
-    currentMesh = new THREE.Mesh(geometry, makeMaterial());
-    group.add(currentMesh);
+    gltfLoader.load(
+      url,
+      (gltf) => showObject(gltf.scene, token),
+      undefined,
+      () => showObject(makePlaceholder(model?.displayname), token),
+    );
+  }
+
+  function showObject(object, token) {
+    if (disposed || token !== modelToken) {
+      if (object !== current?.object) disposeObject(object);
+      return;
+    }
+
+    if (current) {
+      group.remove(current.object);
+      disposeObject(current.object);
+    }
+
+    const meshes = [];
+    object.traverse((child) => {
+      if (!child.isMesh) return;
+      child.material = makeMaterial(child.material);
+      meshes.push(child);
+    });
+
+    fitToView(object);
+    group.add(object);
     group.rotation.set(0, 0, 0);
+    current = { object, meshes };
+    applyTextureToMeshes();
+  }
+
+  // 把模型縮放/置中到固定的取景框，讓沙發跟眼罩都填滿畫面
+  function fitToView(object) {
+    object.updateWorldMatrix(true, true);
+    const box = new THREE.Box3().setFromObject(object);
+    if (box.isEmpty()) return;
+
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    const longest = Math.max(size.x, size.y, size.z) || 1;
+    const scale = 2.4 / longest;
+
+    object.scale.multiplyScalar(scale);
+    object.position.sub(center.multiplyScalar(scale));
+    object.position.y += (size.y * scale) / 2 - 1.2;
   }
 
   function setTexture(url) {
@@ -61,43 +132,79 @@ export function createFabricViewer(el, options) {
     textureLoader.load(
       url,
       (texture) => {
-        texture.colorSpace = THREE.SRGBColorSpace;
-        texture.wrapS = THREE.RepeatWrapping;
-        texture.wrapT = THREE.RepeatWrapping;
-        baseTexture = texture;
-        applyTiling();
-        if (currentMesh) currentMesh.material.map = baseTexture;
-        if (currentMesh) currentMesh.material.needsUpdate = true;
+        adoptTexture(texture);
       },
       undefined,
       () => {
-        baseTexture = makeFallbackTexture();
-        if (currentMesh) currentMesh.material.map = baseTexture;
-        if (currentMesh) currentMesh.material.needsUpdate = true;
+        adoptTexture(makeFallbackTexture());
       },
     );
   }
 
+  function adoptTexture(texture) {
+    if (disposed) {
+      texture.dispose();
+      return;
+    }
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    baseTexture?.dispose();
+    baseTexture = texture;
+    applyTiling();
+    applyTextureToMeshes();
+  }
+
+  function applyTextureToMeshes() {
+    if (!current) return;
+    for (const mesh of current.meshes) {
+      mesh.material.map = baseTexture;
+      mesh.material.needsUpdate = true;
+    }
+  }
+
   function setTiling(value) {
-    tiling = Number(value) || 1;
+    tilingScale = Number(value) || 1;
     applyTiling();
   }
 
   function setBackground(hdri) {
     const file = hdri?.file ?? '#e5e5e5';
-    if (file.startsWith('#')) {
-      scene.background = new THREE.Color(file);
+    const intensity = Number(hdri?.intensity) || 0.6;
+    const token = ++hdrToken;
+
+    if (!file || file.startsWith('#')) {
+      // Asset.xlsx 註明素色背景不使用 HDR，直接以顏色填充
+      scene.background = new THREE.Color(file || '#e5e5e5');
+      scene.environment = null;
+      disposeEnv();
+      hemisphere.intensity = 1.2;
+      renderer.toneMappingExposure = 1;
       return;
     }
 
-    const colors = {
-      lilienstein: 0x87a56f,
-      studio: 0xd6d7db,
-      royal: 0xa7b2c8,
-      lebombo: 0xc8b58a,
-    };
-    const match = Object.keys(colors).find((name) => file.includes(name));
-    scene.background = new THREE.Color(colors[match] ?? 0xe5e5e5);
+    rgbeLoader.load(
+      file,
+      (hdr) => {
+        if (disposed || token !== hdrToken) {
+          hdr.dispose();
+          return;
+        }
+        const target = pmrem.fromEquirectangular(hdr);
+        hdr.dispose();
+        disposeEnv();
+        envMap = target.texture;
+        scene.environment = envMap;
+        scene.background = envMap;
+        hemisphere.intensity = 0.25;
+        renderer.toneMappingExposure = intensity * 1.6;
+      },
+      undefined,
+      () => {
+        if (disposed || token !== hdrToken) return;
+        scene.background = new THREE.Color(0xe5e5e5);
+      },
+    );
   }
 
   function setAutoRotate(value) {
@@ -105,16 +212,36 @@ export function createFabricViewer(el, options) {
   }
 
   function dispose() {
+    disposed = true;
     cancelAnimationFrame(raf);
     observer.disconnect();
     window.removeEventListener('resize', resize);
     controls.dispose();
+    if (current) disposeObject(current.object);
+    baseTexture?.dispose();
+    disposeEnv();
+    pmrem.dispose();
     renderer.dispose();
-    if (currentMesh) {
-      currentMesh.geometry.dispose();
-      currentMesh.material.dispose();
-    }
     el.innerHTML = '';
+  }
+
+  function disposeEnv() {
+    envMap?.dispose();
+    envMap = null;
+  }
+
+  function disposeObject(object) {
+    object?.traverse?.((child) => {
+      if (!child.isMesh) return;
+      child.geometry?.dispose();
+      const materials = Array.isArray(child.material) ? child.material : [child.material];
+      for (const material of materials) material?.dispose();
+    });
+  }
+
+  function makePlaceholder(name = '') {
+    const geometry = makeGeometry(name);
+    return new THREE.Mesh(geometry, new THREE.MeshStandardMaterial());
   }
 
   function makeGeometry(name = '') {
@@ -136,14 +263,20 @@ export function createFabricViewer(el, options) {
     return new THREE.SphereGeometry(1.2, 64, 40);
   }
 
-  function makeMaterial() {
-    return new THREE.MeshStandardMaterial({
+  // 沿用 glb 內建材質的 normal / roughness 等貼圖，只換掉 basecolor
+  function makeMaterial(source) {
+    const origin = Array.isArray(source) ? source[0] : source;
+    const material = new THREE.MeshStandardMaterial({
       color: 0xffffff,
       map: baseTexture,
-      roughness: 0.78,
-      metalness: 0.02,
+      normalMap: origin?.normalMap ?? null,
+      roughnessMap: origin?.roughnessMap ?? null,
+      roughness: origin?.roughness ?? 0.78,
+      metalness: origin?.metalness ?? 0.02,
       side: THREE.DoubleSide,
     });
+    if (origin && origin !== material) origin.dispose?.();
+    return material;
   }
 
   function makeFallbackTexture() {
@@ -164,18 +297,13 @@ export function createFabricViewer(el, options) {
       ctx.lineTo(i + 256, 256);
       ctx.stroke();
     }
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    applyTiling(texture);
-    return texture;
+    return new THREE.CanvasTexture(canvas);
   }
 
-  function applyTiling(texture = baseTexture) {
-    if (!texture) return;
-    texture.repeat.set(tiling, tiling);
-    texture.needsUpdate = true;
+  function applyTiling() {
+    if (!baseTexture) return;
+    baseTexture.repeat.set(modelTiling.x * tilingScale, modelTiling.y * tilingScale);
+    baseTexture.needsUpdate = true;
   }
 
   function resize() {

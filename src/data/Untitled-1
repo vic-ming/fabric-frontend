@@ -1,0 +1,31 @@
+
+A. 規格衝突（會直接影響前端驗證邏輯）
+
+    布重範圍：資料內容.xlsx 43–527 g/m² vs Schema_Specs2VS 50–400 g/m²，哪個為準？（目前實作：前者擋輸入、後者只警告）
+    布厚範圍：0.01–3.4 mm vs 0.05–1.5 mm，同上
+    布種：API 支援 WO/CW/WK/LF 四種，資料內容.xlsx 只列圓編、梭織，Asset 又有經編。LF（貼合）要不要做？
+    Schema_Specs2VS 只列 7 個必填，但 Examples 多送了 DC、BWa、BWe、Stretch_W/F/T — 選填還是文件漏列？
+
+B. 編號與代碼
+    5. 組織編號四套並存：CW2-0000106（Asset.xlsx）、3-0000001（u3m 資料夾）、2-0000033（API SampleCode）、CWD020（前端代碼）。
+       目前我推定首碼 1=梭織 / 2=圓編 / 3=經編 並據此對應，需要客戶給正式對照表確認
+    6. 梭織「泡泡布」沒有代碼，我暫用 WOS040，UI 上標了「代碼待確認」
+    7. CW2-0000301 有瀏覽圖但不在 Asset.xlsx 清單裡，是要補上還是刪掉？
+    8. Asset.xlsx 的布樣清單沒有布重、布厚欄位 — 結果卡目前顯示的是使用者輸入值，不是布樣實際值。要請客戶補
+
+C. 素材缺口
+    9. 40 筆布樣只有 7 筆（全是經編）有 U3M 與貼圖，其餘 33 筆只有瀏覽圖 → 是後續補齊，還是走 Specs2VS + getU3M 即時產生？
+    10. 15 張內建圖案沒有「圖案來源 / 圖案類型」分類，UI 的來源下拉目前只有「全部（分類待客戶提供）」
+
+E. 串接與部署
+    11. Token 綁固定 IP，前端不能直連 → 需要確認自家後端 proxy 的位址與認證方式（VITE_TTRI_BASE_URL 目前空著走 mock）
+    12. 所有 endpoint 都是 http 明碼，前端若走 https 會被 mixed content 擋掉
+    13. Pattern 生成 API 只有 127.0.0.1:3000，沒有可測的正式位址
+    14. 生圖 API 回 base64（單次 3.3 MB JSON），能否改回檔案 URL？
+
+F. 文件錯誤
+    15. Endpoints 範例寫 Product_WeightGY，應為 Product_WeightGSM
+    16. Curl 範例仍指向舊 endpoint FTT2VS
+    17. Examples 裡 getU3M 的 URL 其實是 4458/buildU3M?...，跟 Endpoints 定義的 getU3M 對不上；APITEST02/03 兩列誤貼 APITEST01 的參數
+    18. Pattern_API.xlsx 的 Endpoints 整頁抄自別的文件（參數欄寫 PBR?...、Schema 欄寫 Schema_PredictedFeatures）
+    19. mime_type 三個 response 範例出現 .png / .jpg / image/png 三種寫法（我在程式裡先做了正規化）

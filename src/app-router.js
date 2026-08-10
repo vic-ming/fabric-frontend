@@ -22,6 +22,11 @@ const routes = [
     component: () => import('./views/FabricLibraryView.vue'),
   },
   {
+    path: '/projects',
+    name: 'projects',
+    component: () => import('./views/FabricLibraryView.vue'),
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/login',
   },

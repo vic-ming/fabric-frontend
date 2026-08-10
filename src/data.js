@@ -1,113 +1,34 @@
-export const fabricTypes = [
-  { value: 'WO', text: '梭織' },
-  { value: 'CW', text: '圓編' },
-  { value: 'WK', text: '經編' },
-];
+// 資料彙整入口。實際內容由 scripts/build-fabric-data.py 與 scripts/prepare-assets.py
+// 依客戶交付的 Excel／素材產生，請改動來源檔後重跑腳本，不要直接編輯 src/data/ 下的產生檔。
 
-export const fabricationsByType = {
-  CW: [
-    { value: 'CWD020', text: '雙面PK布' },
-    { value: 'CWD050', text: '雙面羅紋' },
-    { value: 'CWD070', text: '雙面洞洞布' },
-    { value: 'CWS010', text: '單面平紋' },
-    { value: 'CWS060', text: '單面刷毛布' },
-    { value: 'CWS070', text: '單面組織布' },
-    { value: 'CWS080', text: '單面洞洞布' },
-  ],
-  WO: [
-    { value: 'WOS010', text: '平紋' },
-    { value: 'WOS020', text: '斜紋' },
-    { value: 'WOS030', text: '緞紋' },
-  ],
-  WK: [
-    { value: 'WKS010', text: '經編平紋' },
-    { value: 'WKS020', text: '經編網布' },
-  ],
-};
+export {
+  fabricCategories,
+  fabricTypes,
+  fabricationsByType,
+  compositions,
+  compositionByCode,
+  fabricCategoryByCode,
+  stretchOptions,
+  specLimits,
+  patternTasks,
+  patternStyles,
+  patternServers,
+  patternImageSizes,
+} from './data/fabric-options.js';
 
-export const compositions = [
-  { value: 'NF010', text: '棉' },
-  { value: 'SY110', text: '彈性纖維' },
-  { value: 'NF020', text: '亞麻' },
-  { value: 'NF011', text: '有機棉' },
-  { value: 'NF030', text: '苧麻' },
-  { value: 'NF031', text: '漢麻' },
-  { value: 'NF040', text: '絲' },
-  { value: 'NF050', text: '羊毛' },
-  { value: 'NF060', text: '木棉' },
-  { value: 'NF070', text: '回收羊毛' },
-  { value: 'NF080', text: '回收棉' },
-  { value: 'NF090', text: '紙纖維' },
-  { value: 'RE010', text: '黏液嫘縈' },
-  { value: 'RE020', text: '萊賽爾' },
-  { value: 'RE030', text: '酮氨嫘縈' },
-  { value: 'SS010', text: '醋酸纖維' },
-  { value: 'SS020', text: '三醋酸纖維' },
-  { value: 'SY010', text: '耐隆' },
-  { value: 'SY020', text: '耐隆66' },
-  { value: 'SY030', text: '回收耐隆' },
-  { value: 'SY031', text: '回收耐隆66' },
-  { value: 'SY040', text: '陽離子可染耐隆' },
-  { value: 'SY050', text: '聚酯' },
-  { value: 'SY060', text: '回收聚酯' },
-  { value: 'SY070', text: '陽離子可染聚酯' },
-  { value: 'SY080', text: '陽離子可染回收聚酯' },
-  { value: 'SY090', text: '聚丙烯腈 / 壓克力' },
-  { value: 'SY100', text: '聚丙烯' },
-  { value: 'SY120', text: '金銀蔥' },
-  { value: 'SY130', text: '聚氨基甲酸酯' },
-  { value: 'SY140', text: '熱塑性聚氨酯' },
-  { value: 'SY150', text: '泰維克' },
-  { value: 'SY160', text: '聚對苯二甲酸丙二酯' },
-  { value: 'SY170', text: '回收彈性纖維' },
-  { value: 'SY180', text: '聚氯乙烯' },
-  { value: 'SY190', text: '聚四氟乙烯' },
-  { value: 'SY200', text: '生質聚酯纖維' },
-  { value: 'SY210', text: '彈性聚酯複合纖維' },
-  { value: 'SY220', text: '回收彈性聚酯複合纖維' },
-  { value: 'SY230', text: '生質耐隆纖維' },
-  { value: 'SY240', text: '生質彈性纖維' },
-];
+export {
+  fabricLibrary,
+  fabricByCode,
+  fabricsWithU3M,
+  unlistedSwatches,
+} from './data/fabric-library.js';
 
-export const stretchOptions = [
-  { value: 'NA', text: '無彈性' },
-  { value: 'warp stretch', text: '經向彈性' },
-  { value: 'weft stretch', text: '緯向彈性' },
-  { value: '4 way stretch', text: '四向彈性' },
-];
+export {
+  previewModels,
+  previewModelByValue,
+  hdriOptions,
+} from './data/preview-assets.js';
 
-export const previewModels = [
-  { displayname: '球', value: 6, file: 'TEST_BALL_SUB50_CM_Two_material.glb', tilingX: 5.47, tilingY: 4.37, modelType: 'glb' },
-  { displayname: '物性預測模型', value: 9901, file: '2-0000370-2.obj', tilingX: 2.8, tilingY: 2.24, modelType: 'obj' },
-  { displayname: '布料模擬', value: 47, file: 'Fabric_60.glb', tilingX: 6.56, tilingY: 5.25, modelType: 'glb' },
-  { displayname: '女用外套', value: 7, file: 'Coat_20241030.glb', tilingX: 17.18, tilingY: 13.74, modelType: 'glb' },
-  { displayname: '男生T-Shirt', value: 8, file: 'T-Shirt.glb', tilingX: 11.27, tilingY: 9.01, modelType: 'glb' },
-  { displayname: '女生洋裝', value: 10, file: 'Dress.glb', tilingX: 14.33, tilingY: 11.46, modelType: 'glb' },
-  { displayname: '男生襯衫', value: 18, file: 'Shirt.glb', tilingX: 16.63, tilingY: 13.3, modelType: 'glb' },
-  { displayname: '帆布鞋', value: 37, file: 'Shoe_Fix_Texture_V2.glb', tilingX: 4.21, tilingY: 3.37, modelType: 'glb' },
-  { displayname: '休閒鞋', value: 41, file: 'Sneaker_V2.glb', tilingX: 2.74, tilingY: 2.19, modelType: 'glb' },
-  { displayname: '高筒帆布鞋', value: 40, file: 'Dirty sneaker_V2.glb', tilingX: 5.47, tilingY: 4.37, modelType: 'glb' },
-  { displayname: '電腦包', value: 39, file: 'Bag_V12.glb', tilingX: 10.61, tilingY: 8.49, modelType: 'glb' },
-  { displayname: '手提包', value: 42, file: 'Bag_V24_V2.glb', tilingX: 9.3, tilingY: 7.44, modelType: 'glb' },
-  { displayname: '波士頓包', value: 46, file: 'Bag_V30_1.glb', tilingX: 3.28, tilingY: 2.62, modelType: 'glb' },
-  { displayname: '沙發', value: 43, file: 'Sofa_V5.glb', tilingX: 52.3, tilingY: 41.82, modelType: 'glb' },
-  { displayname: '布簾', value: 44, file: 'F.glb', tilingX: 32.82, tilingY: 26.25, modelType: 'glb' },
-  { displayname: '羅馬簾', value: 45, file: 'Curtain_V30.glb', tilingX: 16.41, tilingY: 13.12, modelType: 'glb' },
-  { displayname: '托特包', value: 48, file: 'SoftBag_V1.glb', tilingX: 8.75, tilingY: 7, modelType: 'glb' },
-  { displayname: '百褶包', value: 49, file: 'SoftBag_V2.glb', tilingX: 8.75, tilingY: 7, modelType: 'glb' },
-  { displayname: '新月包', value: 50, file: 'SoftBag_V3.glb', tilingX: 7.66, tilingY: 6.12, modelType: 'glb' },
-  { displayname: '枕頭', value: 51, file: 'Flat_Pillow.glb', tilingX: 11.6, tilingY: 9.27, modelType: 'glb' },
-  { displayname: '飛機枕', value: 52, file: 'neck_Pillow.glb', tilingX: 8.75, tilingY: 7, modelType: 'glb' },
-  { displayname: '彈簧墊', value: 53, file: 'Bed.glb', tilingX: 19.69, tilingY: 15.75, modelType: 'glb' },
-  { displayname: '眼罩', value: 54, file: 'Sleep_Mask.glb', tilingX: 2.25, tilingY: 1.8, modelType: 'glb' },
-  { displayname: '床', value: 55, file: 'only bed.glb', tilingX: 22.1, tilingY: 17.67, modelType: 'glb' },
-  { displayname: '床組', value: 56, file: 'Bed_Set.glb', tilingX: 22.1, tilingY: 17.67, modelType: 'glb' },
-];
+export { builtInPatterns, patternById } from './data/pattern-assets.js';
 
-export const hdriOptions = [
-  { displayname: '白底', value: 1, file: '#e5e5e5', intensity: 0.6 },
-  { displayname: '草地', value: 2, file: 'lilienstein_4k.hdr', intensity: 0.6 },
-  { displayname: '工作室', value: 3, file: 'studio_small_08_4k.hdr', intensity: 0.3 },
-  { displayname: '測試用背景', value: 19, file: 'royal_esplanade_1k.hdr', intensity: 1 },
-  { displayname: 'leb', value: 27, file: 'lebombo_1k.hdr', intensity: 1 },
-];
+export { pantoneColors, pantoneByCode } from './data/pantone.js';

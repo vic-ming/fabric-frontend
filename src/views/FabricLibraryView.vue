@@ -1,9 +1,9 @@
 <script setup>
 import WorkspaceHeader from '../components/WorkspaceHeader.vue';
-import BottomNavigation from '../components/BottomNavigation.vue';
+import SideNavigation from '../components/SideNavigation.vue';
 
 defineProps({
-  mode: { type: String, default: 'history' },
+  mode: { type: String, default: 'projects' },
 });
 
 defineEmits(['navigate', 'logout']);
@@ -25,9 +25,10 @@ const fabrics = [
 
 <template>
   <main class="application-shell library-shell">
+    <SideNavigation :active="mode" @navigate="$emit('navigate', $event)" />
     <WorkspaceHeader @logout="$emit('logout')" />
     <section class="library-content antialiased">
-      <div v-if="mode === 'gallery'" class="gallery-empty-state">
+      <div v-if="mode === 'gallery' || mode === 'history'" class="gallery-empty-state">
         <p>尚在開發中</p>
       </div>
       <template v-else>
@@ -43,7 +44,6 @@ const fabrics = [
           <button type="button" class="new-fabric-card" @click="$emit('navigate', 'workspace')"><img src="/images/ic_add.svg" alt="" aria-hidden="true" />新增布料</button>
         </div>
       </template>
-      <BottomNavigation :active="mode" @navigate="$emit('navigate', $event)" />
     </section>
   </main>
 </template>

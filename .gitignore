@@ -8,6 +8,10 @@ dist/
 dist-ssr/
 *.local
 
+# 客戶交付素材與由其產生的 public 檔（用 scripts/prepare-assets.py 重建）
+TTRI to VJINC/
+public/assets/
+
 # Vite / cache
 .vite/
 .cache/

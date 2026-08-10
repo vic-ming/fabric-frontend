@@ -1,7 +1,8 @@
 <script setup>
 import { computed, reactive, watch } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
-import { compositions, fabricationsByType, fabricTypes, stretchOptions } from '../data.js';
+import { compositions, fabricationsByType, fabricTypes, specLimits, stretchOptions } from '../data.js';
+import { checkSpecRange } from '../api.js';
 
 const emit = defineEmits(['search', 'close']);
 const form = reactive({
@@ -10,6 +11,7 @@ const form = reactive({
   compositions: [{ id: crypto.randomUUID(), code: 'SY060', percent: 100 }],
   gsm: 100,
   thickness: 0.2,
+  opPercentage: 0,
   stretch: 'NA',
 });
 
@@ -21,6 +23,26 @@ const compositionValid = computed(() => (
   && Math.round(compositionTotal.value * 10) / 10 === 100
 ));
 
+// 資料內容.xlsx 的輸入限制（硬性擋下）
+const rangeErrors = computed(() => {
+  const errors = [];
+  const check = (value, limit, label) => {
+    const num = Number(value);
+    if (!Number.isFinite(num) || num < limit.min || num > limit.max) {
+      errors.push(`${label}需介於 ${limit.min} ~ ${limit.max} ${limit.unit}`);
+    }
+  };
+  check(form.gsm, specLimits.gsm, '布重');
+  check(form.thickness, specLimits.thickness, '布厚');
+  check(form.opPercentage, specLimits.opPercentage, 'OP 含量');
+  return errors;
+});
+
+// Specs2VS 模型的訓練範圍比較窄，超出時只提醒不擋
+const rangeWarnings = computed(() => (rangeErrors.value.length ? [] : checkSpecRange(form)));
+
+const canSubmit = computed(() => compositionValid.value && rangeErrors.value.length === 0);
+
 watch(() => form.type, () => {
   if (!fabricationOptions.value.some((item) => item.value === form.weave)) {
     form.weave = fabricationOptions.value[0]?.value ?? '';
@@ -28,7 +50,7 @@ watch(() => form.type, () => {
 });
 
 function submit() {
-  if (!compositionValid.value) return;
+  if (!canSubmit.value) return;
 
   emit('search', {
     ...form,
@@ -39,6 +61,7 @@ function submit() {
       const name = compositions.find((item) => item.value === row.code)?.text ?? row.code;
       return `${row.percent}% ${name}`;
     }).join('、'),
+    warnings: rangeWarnings.value,
   });
 }
 
@@ -71,7 +94,7 @@ function removeComposition(index) {
     <label>
       <span>組織</span>
       <select v-model="form.weave">
-        <option v-for="item in fabricationOptions" :key="item.value" :value="item.value">{{ item.text }}</option>
+        <option v-for="item in fabricationOptions" :key="item.value" :value="item.value">{{ item.text }}{{ item.provisional ? '（代碼待確認）' : '' }}</option>
       </select>
     </label>
     <fieldset class="composition-section">
@@ -96,16 +119,30 @@ function removeComposition(index) {
       </small>
     </fieldset>
     <div class="paired-fields">
-      <label><span>布重 (g/m²)</span><input v-model.number="form.gsm" type="number" /></label>
-      <label><span>布厚 (mm)</span><input v-model.number="form.thickness" type="number" step="0.1" /></label>
+      <label>
+        <span>布重 (g/m²)</span>
+        <input v-model.number="form.gsm" type="number" :min="specLimits.gsm.min" :max="specLimits.gsm.max" />
+      </label>
+      <label>
+        <span>布厚 (mm)</span>
+        <input v-model.number="form.thickness" type="number" step="0.01" :min="specLimits.thickness.min" :max="specLimits.thickness.max" />
+      </label>
     </div>
-    <label>
-      <span>彈性</span>
-      <select v-model="form.stretch">
-        <option v-for="item in stretchOptions" :key="item.value" :value="item.value">{{ item.text }}</option>
-      </select>
-    </label>
-    <button type="button" class="blue-button search-button focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500" :disabled="!compositionValid" @click="submit">搜尋</button>
+    <div class="paired-fields">
+      <label>
+        <span>OP 含量 (%)</span>
+        <input v-model.number="form.opPercentage" type="number" step="0.1" :min="specLimits.opPercentage.min" :max="specLimits.opPercentage.max" />
+      </label>
+      <label>
+        <span>彈性</span>
+        <select v-model="form.stretch">
+          <option v-for="item in stretchOptions" :key="item.value" :value="item.value">{{ item.text }}</option>
+        </select>
+      </label>
+    </div>
+    <p v-for="message in rangeErrors" :key="message" class="spec-message error">{{ message }}</p>
+    <p v-for="message in rangeWarnings" :key="message" class="spec-message warning">{{ message }}，預測可信度較低</p>
+    <button type="button" class="blue-button search-button focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500" :disabled="!canSubmit" @click="submit">搜尋</button>
     <Handle type="source" :position="Position.Right" />
   </article>
 </template>

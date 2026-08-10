@@ -1,14 +1,14 @@
 <script setup>
 import { computed, defineAsyncComponent, nextTick, ref } from 'vue';
 import { MarkerType, VueFlow, useVueFlow } from '@vue-flow/core';
-import { Background } from '@vue-flow/background';
 import WorkspaceHeader from '../components/WorkspaceHeader.vue';
-import BottomNavigation from '../components/BottomNavigation.vue';
+import SideNavigation from '../components/SideNavigation.vue';
 import FabricSearchNode from '../components/FabricSearchNode.vue';
 import FabricResultNode from '../components/FabricResultNode.vue';
 import SolidColorNode from '../components/SolidColorNode.vue';
 import BuiltInPatternNode from '../components/BuiltInPatternNode.vue';
 import UploadPatternNode from '../components/UploadPatternNode.vue';
+import { searchFabrics } from '../api.js';
 
 import '@vue-flow/core/dist/style.css';
 import '@vue-flow/core/dist/theme-default.css';
@@ -49,20 +49,42 @@ async function openSearch() {
   };
 }
 
+// 客戶未提供搜尋 API，先以交付的 40 筆布樣清單比對；一次最多開這麼多張結果卡
+const MAX_RESULTS = 4;
+
 async function runSearch(form) {
   const searchNode = nodes.value.find((node) => node.id === 'search');
   const searchPosition = searchNode?.position ?? { x: 0, y: 0 };
   const resultX = searchPosition.x + 420;
 
+  const matches = (await searchFabrics(form)).slice(0, MAX_RESULTS);
+  const resultNodes = matches.map((fabric, index) => ({
+    id: `fabric-${fabric.code}`,
+    type: 'fabric',
+    position: { x: resultX, y: searchPosition.y - 100 + index * 500 },
+    data: {
+      code: fabric.code,
+      type: fabric.categoryText,
+      weave: fabric.weaveText,
+      composition: fabric.compositionText,
+      // 布重/布厚未隨布樣清單交付，先沿用使用者輸入的規格
+      gsm: form.gsm,
+      thickness: form.thickness,
+      swatch: fabric.swatch,
+      hasU3M: Boolean(fabric.u3m),
+      library: fabric,
+      pattern: index % 2 === 0 ? 'pattern-dark' : 'pattern-light',
+    },
+  }));
+
   nodes.value = [
     ...nodes.value.filter((node) => !node.id.startsWith('fabric-') && !node.id.startsWith('extension-') && !node.id.startsWith('preview-')),
-    { id: 'fabric-1', type: 'fabric', position: { x: resultX, y: searchPosition.y - 100 }, data: { code: 'CW2-0000571', type: form.typeText, weave: form.weaveText, composition: form.compositionText, gsm: form.gsm, thickness: form.thickness, pattern: 'pattern-dark' } },
-    { id: 'fabric-2', type: 'fabric', position: { x: resultX, y: searchPosition.y + 400 }, data: { code: 'CW2-0000621', type: form.typeText, weave: form.weaveText, composition: form.compositionText, gsm: form.gsm, thickness: form.thickness, pattern: 'pattern-light' } },
+    ...resultNodes,
   ];
-  edges.value = ['fabric-1', 'fabric-2'].map((target) => ({
-    id: `search-${target}`,
+  edges.value = resultNodes.map((node) => ({
+    id: `search-${node.id}`,
     source: 'search',
-    target,
+    target: node.id,
     type: 'bezier',
     animated: false,
     markerEnd: MarkerType.ArrowClosed,
@@ -168,6 +190,7 @@ function removeNode(nodeId) {
 
 <template>
   <main class="application-shell">
+    <SideNavigation active="workspace" @navigate="$emit('navigate', $event)" />
     <WorkspaceHeader @logout="$emit('logout')" />
     <section ref="flowStage" class="flow-stage">
       <VueFlow
@@ -178,7 +201,6 @@ function removeNode(nodeId) {
         :default-viewport="{ x: 0, y: 0, zoom: 1 }"
         @pane-click="openSearch"
       >
-        <Background variant="lines" :gap="24" :size="1" pattern-color="#d9dde5" />
         <template #node-search><FabricSearchNode @search="runSearch" @close="closeSearch" /></template>
         <template #node-fabric="nodeProps"><FabricResultNode :data="nodeProps.data" :extension-count="extensionCount(nodeProps.id)" :max-extensions="MAX_EXTENSIONS" @extend="extendFabric(nodeProps.id, $event)" /></template>
         <template #node-solid="nodeProps"><SolidColorNode :id="nodeProps.id" @close="removeNode" @preview="openPreview(nodeProps.id, $event)" /></template>
@@ -200,8 +222,6 @@ function removeNode(nodeId) {
           </div>
         </div>
       </Teleport>
-
-      <BottomNavigation active="workspace" @navigate="$emit('navigate', $event)" />
     </section>
   </main>
 </template>
