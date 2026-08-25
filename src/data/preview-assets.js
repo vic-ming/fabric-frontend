@@ -1,7 +1,8 @@
 // 本檔由 scripts/build-fabric-data.py 依 Asset 檔案/Asset.xlsx（模型、背景） 自動產生，請勿手動編輯。
 
 
-// tilingX = 模型公分尺寸 / 9.144，tilingY = tilingX * 0.8
+// sizeX / sizeY 為模型的實際公分尺寸，貼圖重複次數在 three-viewer.js 依
+// 「模型公分 / 貼圖實際公分」計算，不再預先算好 tiling。
 export const previewModels = [
   {
     "value": 1,
@@ -11,8 +12,6 @@ export const previewModels = [
     "modelType": "glb",
     "sizeX": 50.0,
     "sizeY": 50.0,
-    "tilingX": 5.47,
-    "tilingY": 4.38,
     "public": true
   },
   {
@@ -23,8 +22,6 @@ export const previewModels = [
     "modelType": "glb",
     "sizeX": 60.0,
     "sizeY": 60.0,
-    "tilingX": 6.56,
-    "tilingY": 5.25,
     "public": true
   },
   {
@@ -35,8 +32,6 @@ export const previewModels = [
     "modelType": "glb",
     "sizeX": 157.0,
     "sizeY": 157.0,
-    "tilingX": 17.17,
-    "tilingY": 13.74,
     "public": true
   },
   {
@@ -47,8 +42,6 @@ export const previewModels = [
     "modelType": "glb",
     "sizeX": 103.0,
     "sizeY": 103.0,
-    "tilingX": 11.26,
-    "tilingY": 9.01,
     "public": true
   },
   {
@@ -59,8 +52,6 @@ export const previewModels = [
     "modelType": "glb",
     "sizeX": 131.0,
     "sizeY": 131.0,
-    "tilingX": 14.33,
-    "tilingY": 11.46,
     "public": true
   },
   {
@@ -71,8 +62,6 @@ export const previewModels = [
     "modelType": "glb",
     "sizeX": 152.0,
     "sizeY": 152.0,
-    "tilingX": 16.62,
-    "tilingY": 13.3,
     "public": true
   },
   {
@@ -83,8 +72,6 @@ export const previewModels = [
     "modelType": "glb",
     "sizeX": 38.5,
     "sizeY": 38.5,
-    "tilingX": 4.21,
-    "tilingY": 3.37,
     "public": true
   },
   {
@@ -95,8 +82,6 @@ export const previewModels = [
     "modelType": "glb",
     "sizeX": 25.0,
     "sizeY": 25.0,
-    "tilingX": 2.73,
-    "tilingY": 2.18,
     "public": true
   },
   {
@@ -107,8 +92,6 @@ export const previewModels = [
     "modelType": "glb",
     "sizeX": 50.0,
     "sizeY": 50.0,
-    "tilingX": 5.47,
-    "tilingY": 4.38,
     "public": true
   },
   {
@@ -119,8 +102,6 @@ export const previewModels = [
     "modelType": "glb",
     "sizeX": 97.0,
     "sizeY": 97.0,
-    "tilingX": 10.61,
-    "tilingY": 8.49,
     "public": true
   },
   {
@@ -131,8 +112,6 @@ export const previewModels = [
     "modelType": "glb",
     "sizeX": 85.0,
     "sizeY": 85.0,
-    "tilingX": 9.3,
-    "tilingY": 7.44,
     "public": true
   },
   {
@@ -143,8 +122,6 @@ export const previewModels = [
     "modelType": "glb",
     "sizeX": 30.0,
     "sizeY": 30.0,
-    "tilingX": 3.28,
-    "tilingY": 2.62,
     "public": true
   },
   {
@@ -155,8 +132,6 @@ export const previewModels = [
     "modelType": "glb",
     "sizeX": 478.0,
     "sizeY": 478.0,
-    "tilingX": 52.27,
-    "tilingY": 41.82,
     "public": true
   },
   {
@@ -167,8 +142,6 @@ export const previewModels = [
     "modelType": "glb",
     "sizeX": 300.0,
     "sizeY": 300.0,
-    "tilingX": 32.81,
-    "tilingY": 26.25,
     "public": true
   },
   {
@@ -179,8 +152,6 @@ export const previewModels = [
     "modelType": "glb",
     "sizeX": 150.0,
     "sizeY": 150.0,
-    "tilingX": 16.4,
-    "tilingY": 13.12,
     "public": true
   },
   {
@@ -191,8 +162,6 @@ export const previewModels = [
     "modelType": "glb",
     "sizeX": 80.0,
     "sizeY": 80.0,
-    "tilingX": 8.75,
-    "tilingY": 7.0,
     "public": true
   },
   {
@@ -203,8 +172,6 @@ export const previewModels = [
     "modelType": "glb",
     "sizeX": 80.0,
     "sizeY": 80.0,
-    "tilingX": 8.75,
-    "tilingY": 7.0,
     "public": true
   },
   {
@@ -215,8 +182,6 @@ export const previewModels = [
     "modelType": "glb",
     "sizeX": 70.0,
     "sizeY": 70.0,
-    "tilingX": 7.66,
-    "tilingY": 6.13,
     "public": true
   },
   {
@@ -227,8 +192,6 @@ export const previewModels = [
     "modelType": "glb",
     "sizeX": 106.0,
     "sizeY": 106.0,
-    "tilingX": 11.59,
-    "tilingY": 9.27,
     "public": true
   },
   {
@@ -239,8 +202,6 @@ export const previewModels = [
     "modelType": "glb",
     "sizeX": 80.0,
     "sizeY": 80.0,
-    "tilingX": 8.75,
-    "tilingY": 7.0,
     "public": true
   },
   {
@@ -251,8 +212,6 @@ export const previewModels = [
     "modelType": "glb",
     "sizeX": 180.0,
     "sizeY": 180.0,
-    "tilingX": 19.69,
-    "tilingY": 15.75,
     "public": true
   },
   {
@@ -263,8 +222,6 @@ export const previewModels = [
     "modelType": "glb",
     "sizeX": 20.6,
     "sizeY": 20.6,
-    "tilingX": 2.25,
-    "tilingY": 1.8,
     "public": true
   },
   {
@@ -275,8 +232,6 @@ export const previewModels = [
     "modelType": "glb",
     "sizeX": 202.0,
     "sizeY": 202.0,
-    "tilingX": 22.09,
-    "tilingY": 17.67,
     "public": true
   },
   {
@@ -287,11 +242,13 @@ export const previewModels = [
     "modelType": "glb",
     "sizeX": 202.0,
     "sizeY": 202.0,
-    "tilingX": 22.09,
-    "tilingY": 17.67,
     "public": true
   }
 ];
+
+// 沒有宣告實際尺寸的貼圖（內建圖案等）採用的預設邊長，單位公分。
+// 此值由前一版寫死的 tiling 反推而來，並非客戶提供，待確認。
+export const defaultTextureCm = 9.144;
 
 export const hdriOptions = [
   {

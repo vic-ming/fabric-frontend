@@ -140,6 +140,8 @@ function removeComposition(index) {
         </select>
       </label>
     </div>
+    <!-- 客戶的布樣清單沒有彈性欄位，這個條件目前只會帶進 API 呼叫，不參與布樣比對 -->
+    <p v-if="form.stretch !== 'NA'" class="spec-message">布樣清單未提供彈性資料，此條件暫不影響搜尋結果</p>
     <p v-for="message in rangeErrors" :key="message" class="spec-message error">{{ message }}</p>
     <p v-for="message in rangeWarnings" :key="message" class="spec-message warning">{{ message }}，預測可信度較低</p>
     <button type="button" class="blue-button search-button focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500" :disabled="!canSubmit" @click="submit">搜尋</button>

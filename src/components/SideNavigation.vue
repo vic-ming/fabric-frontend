@@ -4,8 +4,7 @@ defineEmits(['navigate']);
 
 const items = [
   { id: 'workspace', label: '新增專案', icon: '/images/nav_1.svg' },
-  { id: 'gallery', label: '我的圖庫', icon: '/images/nav_2.svg' },
-  { id: 'history', label: '歷史布料', icon: '/images/nav_3.svg' },
+  { id: 'gallery', label: '我的印花', icon: '/images/nav_2.svg' },
   { id: 'projects', label: '歷史專案', icon: '/images/nav_4.svg' },
 ];
 </script>

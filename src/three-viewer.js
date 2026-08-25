@@ -2,9 +2,13 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
+import { defaultTextureCm } from './data/preview-assets.js';
 
-// 布料材質在模型上的重複次數由 previewModels 的 tilingX / tilingY 決定
-// （= 模型公分尺寸 / 9.144），使用者的縮放滑桿再乘上去。
+// 貼圖重複次數 = 模型實際公分尺寸 / 貼圖實際公分尺寸 × 使用者的縮放倍率。
+//
+// 布樣貼圖的實際尺寸來自客戶的 .u3m（例如 WK3-0000001 的織紋一個循環是 3.97 × 4.03 cm）。
+// 顏色貼圖與材質貼圖（法線、粗糙度）各自算 —— 使用者換上自己的圖案時，圖案的尺寸會變，
+// 但底下那塊布的織紋粒度不該跟著變。
 
 export function createFabricViewer(el, options) {
   const scene = new THREE.Scene();
@@ -22,10 +26,15 @@ export function createFabricViewer(el, options) {
   let current = null;          // { object, meshes }
   let modelToken = 0;
   let hdrToken = 0;
+  let colorToken = 0;
+  let materialToken = 0;
   let autoRotate = false;
   let tilingScale = 1;
-  let modelTiling = { x: 1, y: 1 };
-  let baseTexture = null;
+  let modelSize = { x: 100, y: 100 };
+  let colorSize = { width: defaultTextureCm, height: defaultTextureCm };
+  let materialSize = { width: defaultTextureCm, height: defaultTextureCm };
+  let colorMap = null;
+  let materialMaps = {};       // { normalMap, roughnessMap, alphaMap }
   let envMap = null;
 
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -53,7 +62,8 @@ export function createFabricViewer(el, options) {
   scene.add(fill);
 
   setBackground(options.hdri);
-  setTexture(options.textureBase);
+  setColorMap(options.colorMap);
+  setMaterialMaps(options.materialMaps);
   setModel(options.model);
   resize();
 
@@ -63,9 +73,9 @@ export function createFabricViewer(el, options) {
   animate();
 
   function setModel(model) {
-    modelTiling = {
-      x: Number(model?.tilingX) || 1,
-      y: Number(model?.tilingY) || Number(model?.tilingX) || 1,
+    modelSize = {
+      x: Number(model?.sizeX) || 100,
+      y: Number(model?.sizeY) || Number(model?.sizeX) || 100,
     };
     applyTiling();
 
@@ -100,7 +110,7 @@ export function createFabricViewer(el, options) {
     const meshes = [];
     object.traverse((child) => {
       if (!child.isMesh) return;
-      child.material = makeMaterial(child.material);
+      child.material = makeMaterial();
       meshes.push(child);
     });
 
@@ -108,7 +118,7 @@ export function createFabricViewer(el, options) {
     group.add(object);
     group.rotation.set(0, 0, 0);
     current = { object, meshes };
-    applyTextureToMeshes();
+    applyMaterials();
   }
 
   // 把模型縮放/置中到固定的取景框，讓沙發跟眼罩都填滿畫面
@@ -127,45 +137,112 @@ export function createFabricViewer(el, options) {
     object.position.y += (size.y * scale) / 2 - 1.2;
   }
 
-  function setTexture(url) {
-    if (!url) return;
+  /** @param {{url: string, widthCm?: number, heightCm?: number}} source */
+  function setColorMap(source) {
+    const url = typeof source === 'string' ? source : source?.url;
+    colorSize = {
+      width: Number(source?.widthCm) || defaultTextureCm,
+      height: Number(source?.heightCm) || Number(source?.widthCm) || defaultTextureCm,
+    };
+    if (!url) {
+      applyTiling();
+      return;
+    }
+
+    const token = ++colorToken;
     textureLoader.load(
       url,
-      (texture) => {
-        adoptTexture(texture);
-      },
+      (texture) => adoptColorMap(texture, token),
       undefined,
-      () => {
-        adoptTexture(makeFallbackTexture());
-      },
+      () => adoptColorMap(makeFallbackTexture(), token),
     );
   }
 
-  function adoptTexture(texture) {
-    if (disposed) {
+  function adoptColorMap(texture, token) {
+    if (disposed || token !== colorToken) {
       texture.dispose();
       return;
     }
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
-    baseTexture?.dispose();
-    baseTexture = texture;
+    colorMap?.dispose();
+    colorMap = texture;
     applyTiling();
-    applyTextureToMeshes();
+    applyMaterials();
   }
 
-  function applyTextureToMeshes() {
+  /**
+   * 布樣自己的 PBR 貼圖。normal 撐起織紋的立體感、roughness 決定光澤變化，
+   * alpha 只有真的有孔洞的布樣（洞洞布/網布）才掛。
+   * @param {{normal?: string, roughness?: string, alpha?: string, widthCm?: number, heightCm?: number}} maps
+   */
+  function setMaterialMaps(maps) {
+    materialSize = {
+      width: Number(maps?.widthCm) || defaultTextureCm,
+      height: Number(maps?.heightCm) || Number(maps?.widthCm) || defaultTextureCm,
+    };
+
+    for (const texture of Object.values(materialMaps)) texture?.dispose();
+    materialMaps = {};
+    applyMaterials();
+
+    const wanted = [
+      ['normalMap', maps?.normal],
+      ['roughnessMap', maps?.roughness],
+      ['alphaMap', maps?.alpha],
+    ].filter(([, url]) => Boolean(url));
+    if (!wanted.length) return;
+
+    const token = ++materialToken;
+    for (const [slot, url] of wanted) {
+      textureLoader.load(url, (texture) => {
+        if (disposed || token !== materialToken) {
+          texture.dispose();
+          return;
+        }
+        // 非顏色資料一律留在線性空間，套 sRGB 會讓凹凸與粗糙度失真
+        texture.colorSpace = THREE.NoColorSpace;
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        materialMaps[slot] = texture;
+        applyTiling();
+        applyMaterials();
+      });
+    }
+  }
+
+  function applyMaterials() {
     if (!current) return;
     for (const mesh of current.meshes) {
-      mesh.material.map = baseTexture;
-      mesh.material.needsUpdate = true;
+      const material = mesh.material;
+      material.map = colorMap;
+      material.normalMap = materialMaps.normalMap ?? null;
+      material.roughnessMap = materialMaps.roughnessMap ?? null;
+      material.alphaMap = materialMaps.alphaMap ?? null;
+      material.roughness = materialMaps.roughnessMap ? 1 : 0.78;
+      // 用 alphaTest 而非半透明，避免布料前後片互相穿透造成排序問題
+      material.alphaTest = materialMaps.alphaMap ? 0.5 : 0;
+      material.needsUpdate = true;
     }
   }
 
   function setTiling(value) {
     tilingScale = Number(value) || 1;
     applyTiling();
+  }
+
+  function applyTiling() {
+    const repeat = (texture, size) => {
+      if (!texture) return;
+      texture.repeat.set(
+        (modelSize.x / size.width) * tilingScale,
+        (modelSize.y / size.height) * tilingScale,
+      );
+      texture.needsUpdate = true;
+    };
+    repeat(colorMap, colorSize);
+    for (const texture of Object.values(materialMaps)) repeat(texture, materialSize);
   }
 
   function setBackground(hdri) {
@@ -211,6 +288,12 @@ export function createFabricViewer(el, options) {
     autoRotate = Boolean(value);
   }
 
+  /** 擷取目前畫面。要先 render 一次，否則沒開 preserveDrawingBuffer 會拿到空白。 */
+  function capture() {
+    renderer.render(scene, camera);
+    return renderer.domElement.toDataURL('image/png');
+  }
+
   function dispose() {
     disposed = true;
     cancelAnimationFrame(raf);
@@ -218,7 +301,8 @@ export function createFabricViewer(el, options) {
     window.removeEventListener('resize', resize);
     controls.dispose();
     if (current) disposeObject(current.object);
-    baseTexture?.dispose();
+    colorMap?.dispose();
+    for (const texture of Object.values(materialMaps)) texture?.dispose();
     disposeEnv();
     pmrem.dispose();
     renderer.dispose();
@@ -240,8 +324,7 @@ export function createFabricViewer(el, options) {
   }
 
   function makePlaceholder(name = '') {
-    const geometry = makeGeometry(name);
-    return new THREE.Mesh(geometry, new THREE.MeshStandardMaterial());
+    return new THREE.Mesh(makeGeometry(name), makeMaterial());
   }
 
   function makeGeometry(name = '') {
@@ -263,20 +346,14 @@ export function createFabricViewer(el, options) {
     return new THREE.SphereGeometry(1.2, 64, 40);
   }
 
-  // 沿用 glb 內建材質的 normal / roughness 等貼圖，只換掉 basecolor
-  function makeMaterial(source) {
-    const origin = Array.isArray(source) ? source[0] : source;
-    const material = new THREE.MeshStandardMaterial({
+  // 一律換上自己的材質：glb 內建的貼圖是模型作者放的示意花色，不是使用者選的布
+  function makeMaterial() {
+    return new THREE.MeshStandardMaterial({
       color: 0xffffff,
-      map: baseTexture,
-      normalMap: origin?.normalMap ?? null,
-      roughnessMap: origin?.roughnessMap ?? null,
-      roughness: origin?.roughness ?? 0.78,
-      metalness: origin?.metalness ?? 0.02,
+      roughness: 0.78,
+      metalness: 0,
       side: THREE.DoubleSide,
     });
-    if (origin && origin !== material) origin.dispose?.();
-    return material;
   }
 
   function makeFallbackTexture() {
@@ -300,12 +377,6 @@ export function createFabricViewer(el, options) {
     return new THREE.CanvasTexture(canvas);
   }
 
-  function applyTiling() {
-    if (!baseTexture) return;
-    baseTexture.repeat.set(modelTiling.x * tilingScale, modelTiling.y * tilingScale);
-    baseTexture.needsUpdate = true;
-  }
-
   function resize() {
     const width = el.clientWidth || 640;
     const height = el.clientHeight || 500;
@@ -323,10 +394,12 @@ export function createFabricViewer(el, options) {
 
   return {
     setModel,
+    setColorMap,
+    setMaterialMaps,
     setTiling,
     setBackground,
     setAutoRotate,
-    setTexture,
+    capture,
     dispose,
   };
 }

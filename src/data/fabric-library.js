@@ -465,6 +465,11 @@ export const fabricLibrary = [
     "compositionText": "80% 耐隆、20% 彈性纖維",
     "swatch": "/assets/swatches/WK3-0000001_G.png",
     "legacyCode": "3-0000001",
+    "textureSizeCm": {
+      "width": 3.965,
+      "height": 4.034
+    },
+    "usesAlpha": false,
     "u3m": {
       "dir": "/assets/fabrics/3-0000001",
       "file": "/assets/fabrics/3-0000001/3-0000001.u3m",
@@ -506,6 +511,11 @@ export const fabricLibrary = [
     "compositionText": "64% 聚酯、36% 棉",
     "swatch": "/assets/swatches/WK3-0000007_G.png",
     "legacyCode": "3-0000007",
+    "textureSizeCm": {
+      "width": 3.923,
+      "height": 3.923
+    },
+    "usesAlpha": false,
     "u3m": {
       "dir": "/assets/fabrics/3-0000007",
       "file": "/assets/fabrics/3-0000007/3-0000007.u3m",
@@ -542,6 +552,11 @@ export const fabricLibrary = [
     "compositionText": "100% 聚酯",
     "swatch": "/assets/swatches/WK3-0000009_G.png",
     "legacyCode": "3-0000009",
+    "textureSizeCm": {
+      "width": 15.688,
+      "height": 15.688
+    },
+    "usesAlpha": true,
     "u3m": {
       "dir": "/assets/fabrics/3-0000009",
       "file": "/assets/fabrics/3-0000009/3-0000009.u3m",
@@ -578,6 +593,11 @@ export const fabricLibrary = [
     "compositionText": "100% 聚酯",
     "swatch": "/assets/swatches/WK3-0000041_G.png",
     "legacyCode": "3-0000041",
+    "textureSizeCm": {
+      "width": 3.965,
+      "height": 3.976
+    },
+    "usesAlpha": false,
     "u3m": {
       "dir": "/assets/fabrics/3-0000041",
       "file": "/assets/fabrics/3-0000041/3-0000041.u3m",
@@ -614,6 +634,11 @@ export const fabricLibrary = [
     "compositionText": "100% 聚酯",
     "swatch": "/assets/swatches/WK3-0000048_G.png",
     "legacyCode": "3-0000048",
+    "textureSizeCm": {
+      "width": 14.236,
+      "height": 11.571
+    },
+    "usesAlpha": true,
     "u3m": {
       "dir": "/assets/fabrics/3-0000048",
       "file": "/assets/fabrics/3-0000048/3-0000048.u3m",
@@ -655,6 +680,11 @@ export const fabricLibrary = [
     "compositionText": "80% 耐隆、20% 彈性纖維",
     "swatch": "/assets/swatches/WK3-0000107_G.png",
     "legacyCode": "3-0000107",
+    "textureSizeCm": {
+      "width": 4.383,
+      "height": 4.444
+    },
+    "usesAlpha": false,
     "u3m": {
       "dir": "/assets/fabrics/3-0000107",
       "file": "/assets/fabrics/3-0000107/3-0000107.u3m",
@@ -696,6 +726,11 @@ export const fabricLibrary = [
     "compositionText": "80% 耐隆、20% 彈性纖維",
     "swatch": "/assets/swatches/WK3-0000111_G.png",
     "legacyCode": "3-0000111",
+    "textureSizeCm": {
+      "width": 4.405,
+      "height": 4.444
+    },
+    "usesAlpha": false,
     "u3m": {
       "dir": "/assets/fabrics/3-0000111",
       "file": "/assets/fabrics/3-0000111/3-0000111.u3m",

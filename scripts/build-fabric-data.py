@@ -14,6 +14,9 @@ import re
 import sys
 
 import openpyxl
+from PIL import Image
+
+Image.MAX_IMAGE_PIXELS = None
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DELIVERY = os.path.join(ROOT, 'TTRI to VJINC')
@@ -24,9 +27,13 @@ ASSET_XLSX = os.path.join(DELIVERY, 'Asset 檔案', 'Asset.xlsx')
 SWATCH_DIR = os.path.join(DELIVERY, 'Asset 檔案', '組織瀏覽圖')
 WEAVE_DIR = os.path.join(DELIVERY, 'Asset 檔案', '組織')
 
-# 模型公分尺寸 -> 貼圖 tiling 的換算基準（沿用既有 data.js 的比例：tilingX = 公分 / 9.144，tilingY = tilingX * 0.8）
-TILING_CM_PER_REPEAT = 9.144
-TILING_Y_RATIO = 0.8
+# 貼圖重複次數 = 模型公分尺寸 / 貼圖實際公分尺寸。
+# 布樣貼圖的實際尺寸讀 .u3m（客戶有寫，單位 mm）；沒有宣告尺寸的圖案（例如內建的 15 張）
+# 就退回這個預設值 —— 9.144 cm 是從前一版寫死的 tiling 反推出來的常數，非客戶提供，待確認。
+DEFAULT_TEXTURE_CM = 9.144
+
+# ALPHA 貼圖近乎全白時代表沒有孔洞，套上去只是白費效能
+ALPHA_OPAQUE_THRESHOLD = 250
 
 # 布種代碼。LF（貼合）為 Specs2VS 支援但本次未交付素材。
 FABRIC_CATEGORIES = [
@@ -216,6 +223,34 @@ def write_options(content):
     return path, len(content['compositions'])
 
 
+def read_texture_size_cm(src_dir, legacy):
+    """從 .u3m 讀 basecolor 貼圖的實際尺寸（客戶以 mm 記錄），換算成公分。"""
+    path = os.path.join(src_dir, f'{legacy}.u3m')
+    try:
+        with open(path, encoding='utf-8') as fh:
+            image = json.load(fh)['material']['front']['basecolor']['texture']['image']
+        return {
+            'width': round(image['width'] / 10, 3),
+            'height': round(image['height'] / 10, 3),
+        }
+    except (OSError, KeyError, TypeError, ValueError):
+        return None
+
+
+def alpha_has_holes(src_dir, legacy):
+    """ALPHA 貼圖幾乎全白代表沒有孔洞，這種就不必掛 alphaMap。"""
+    path = os.path.join(src_dir, 'textures', f'{legacy}_ALPHA.jpg')
+    if not os.path.exists(path):
+        return False
+    try:
+        with Image.open(path) as im:
+            im.draft('L', (128, 128))
+            sample = im.convert('L').resize((128, 128), Image.LANCZOS)
+        return min(sample.getdata()) < ALPHA_OPAQUE_THRESHOLD
+    except OSError:
+        return False
+
+
 def write_library(content, assets):
     comp_by_name = {c['text']: c for c in content['compositions']}
     weave_code_by_text = {}
@@ -267,6 +302,8 @@ def write_library(content, assets):
             src_dir = os.path.join(WEAVE_DIR, legacy)
             physics = next((f for f in os.listdir(src_dir) if f.endswith('.json')), None)
             entry['legacyCode'] = legacy
+            entry['textureSizeCm'] = read_texture_size_cm(src_dir, legacy)
+            entry['usesAlpha'] = alpha_has_holes(src_dir, legacy)
             entry['u3m'] = {
                 'dir': f'/assets/fabrics/{legacy}',
                 'file': f'/assets/fabrics/{legacy}/{legacy}.u3m',
@@ -303,7 +340,6 @@ def write_library(content, assets):
 def write_preview_assets(assets):
     models = []
     for model in assets['models']:
-        tiling_x = round(model['sizeX'] / TILING_CM_PER_REPEAT, 2)
         models.append({
             'value': model['index'],
             'displayname': model['text'],
@@ -312,8 +348,6 @@ def write_preview_assets(assets):
             'modelType': os.path.splitext(model['file'])[1].lstrip('.'),
             'sizeX': model['sizeX'],
             'sizeY': model['sizeY'],
-            'tilingX': tiling_x,
-            'tilingY': round(tiling_x * TILING_Y_RATIO, 2),
             'public': model['public'],
         })
 
@@ -329,8 +363,12 @@ def write_preview_assets(assets):
         })
 
     lines = [header('Asset 檔案/Asset.xlsx（模型、背景）'), '']
-    lines.append(f'// tilingX = 模型公分尺寸 / {TILING_CM_PER_REPEAT}，tilingY = tilingX * {TILING_Y_RATIO}')
+    lines.append('// sizeX / sizeY 為模型的實際公分尺寸，貼圖重複次數在 three-viewer.js 依')
+    lines.append('// 「模型公分 / 貼圖實際公分」計算，不再預先算好 tiling。')
     lines.append(f'export const previewModels = {js(models, 2)};\n')
+    lines.append('// 沒有宣告實際尺寸的貼圖（內建圖案等）採用的預設邊長，單位公分。')
+    lines.append('// 此值由前一版寫死的 tiling 反推而來，並非客戶提供，待確認。')
+    lines.append(f'export const defaultTextureCm = {DEFAULT_TEXTURE_CM};\n')
     lines.append(f'export const hdriOptions = {js(backgrounds, 2)};\n')
     lines.append('export const previewModelByValue = Object.fromEntries(previewModels.map((item) => [item.value, item]));\n')
 
